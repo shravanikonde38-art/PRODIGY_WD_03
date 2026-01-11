@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tic Tac Toe – Pro Smart AI</title>
+
+<style>
+:root{
+    --accent:#22c55e;
+    --accent2:#38bdf8;
+    --glass:rgba(255,255,255,0.12);
+}
+
+/* RESET */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI", sans-serif;
+}
+
+/* 🌈 ANIMATED BACKGROUND */
+body{
+    height:100vh;
+    background: linear-gradient(-45deg,#0f766e,#134e4a,#020617,#0f172a);
+    background-size:400% 400%;
+    animation:bgMove 12s ease infinite;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:white;
+}
+
+@keyframes bgMove{
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+}
+
+/* GAME CARD */
+.game{
+    backdrop-filter: blur(18px);
+    background: linear-gradient(145deg,rgba(255,255,255,0.14),rgba(255,255,255,0.04));
+    border-radius:26px;
+    padding:30px;
+    width:360px;
+    box-shadow:0 40px 80px rgba(0,0,0,0.7);
+    border:1px solid rgba(255,255,255,0.18);
+}
+
+/* HEADER */
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+}
+
+.header h1{
+    font-size:22px;
+    letter-spacing:2px;
+}
+
+.badge{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:black;
+    padding:5px 12px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+}
+
+/* SELECT */
+select{
+    width:100%;
+    padding:10px;
+    border-radius:12px;
+    border:none;
+    outline:none;
+    background:var(--glass);
+    color:white;
+    margin-bottom:16px;
+}
+
+/* BOARD */
+.board{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    margin:18px 0;
+}
+
+.cell{
+    aspect-ratio:1;
+    background:linear-gradient(145deg,#022c22,#064e3b);
+    border-radius:20px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:44px;
+    font-weight:700;
+    cursor:pointer;
+    transition:0.35s;
+    box-shadow:inset 0 0 0 rgba(0,0,0,0);
+}
+
+/* NEON SYMBOLS */
+.cell:not(:empty){
+    text-shadow:0 0 12px currentColor;
+}
+
+.cell:hover{
+    transform:translateY(-6px) scale(1.04);
+    box-shadow:0 15px 35px rgba(0,0,0,0.7);
+}
+
+/* WIN CELL */
+.cell.win{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:black;
+    animation:pulse 1s infinite alternate;
+}
+
+@keyframes pulse{
+    from{box-shadow:0 0 12px var(--accent);}
+    to{box-shadow:0 0 30px var(--accent2);}
+}
+
+/* STATUS */
+.status{
+    text-align:center;
+    font-size:17px;
+    opacity:0.9;
+}
+
+/* BUTTON */
+button{
+    width:100%;
+    margin-top:18px;
+    padding:14px;
+    border:none;
+    border-radius:16px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:black;
+    font-weight:800;
+    font-size:15px;
+    cursor:pointer;
+    transition:0.35s;
+}
+
+button:hover{
+    transform:scale(1.06);
+    box-shadow:0 12px 30px rgba(34,197,94,0.5);
+}
+
+/* POPUP */
+.popup{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.8);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    visibility:hidden;
+}
+
+.popup.show{visibility:visible;}
+
+.popup-box{
+    background:linear-gradient(145deg,#022c22,#064e3b);
+    padding:36px;
+    border-radius:26px;
+    text-align:center;
+    animation:zoom 0.5s ease;
+    box-shadow:0 30px 70px rgba(0,0,0,0.8);
+}
+
+@keyframes zoom{
+    from{transform:scale(0);}
+    to{transform:scale(1);}
+}
+
+/* CONFETTI */
+.confetti{
+    position:fixed;
+    width:10px;
+    height:10px;
+    top:-10px;
+    animation:fall linear forwards;
+}
+
+@keyframes fall{
+    to{
+        transform:translateY(100vh) rotate(360deg);
+        opacity:0;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="game">
+    <div class="header">
+        <h1>TIC-TAC-TOE</h1>
+        <div class="badge">SMART AI</div>
+    </div>
+
+    <select id="mode">
+        <option value="pvp">Player vs Player</option>
+        <option value="ai">Player vs Smart AI</option>
+    </select>
+
+    <div class="board" id="board"></div>
+    <div class="status" id="status">Player X's turn</div>
+    <button onclick="resetGame()">Restart Game</button>
+</div>
+
+<div class="popup" id="popup">
+    <div class="popup-box">
+        <h2 id="winnerText">🎉 Player X Wins!</h2>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+</div>
+
+<script>
+const board=document.getElementById("board");
+const statusText=document.getElementById("status");
+const popup=document.getElementById("popup");
+const winnerText=document.getElementById("winnerText");
+const modeSelect=document.getElementById("mode");
+
+let cells=Array(9).fill("");
+let currentPlayer="X";
+let gameActive=true;
+
+const winPatterns=[
+ [0,1,2],[3,4,5],[6,7,8],
+ [0,3,6],[1,4,7],[2,5,8],
+ [0,4,8],[2,4,6]
+];
+
+function createBoard(){
+ board.innerHTML="";
+ cells.forEach((_,i)=>{
+  const cell=document.createElement("div");
+  cell.className="cell";
+  cell.onclick=()=>handleMove(i);
+  board.appendChild(cell);
+ });
+}
+
+function handleMove(i){
+ if(!gameActive||cells[i]!="")return;
+ cells[i]=currentPlayer;
+ board.children[i].textContent=currentPlayer;
+
+ if(checkWinner()){celebrate();return;}
+ if(!cells.includes("")){
+  statusText.textContent="It's a Draw 🤝";
+  gameActive=false;return;
+ }
+
+ currentPlayer=currentPlayer==="X"?"O":"X";
+ statusText.textContent=`Player ${currentPlayer}'s turn`;
+
+ if(modeSelect.value==="ai"&&currentPlayer==="O"){
+  setTimeout(aiMove,350);
+ }
+}
+
+/* SMART AI */
+function aiMove(){
+ let best=-Infinity,move;
+ for(let i=0;i<9;i++){
+  if(cells[i]===""){
+   cells[i]="O";
+   let score=minimax(cells,false);
+   cells[i]="";
+   if(score>best){best=score;move=i;}
+  }
+ }
+ handleMove(move);
+}
+
+function minimax(b,isMax){
+ let r=result(b);
+ if(r!==null)return r;
+ let best=isMax?-Infinity:Infinity;
+ for(let i=0;i<9;i++){
+  if(b[i]===""){
+   b[i]=isMax?"O":"X";
+   best=isMax?Math.max(best,minimax(b,false)):Math.min(best,minimax(b,true));
+   b[i]="";
+  }
+ }
+ return best;
+}
+
+function result(b){
+ for(let p of winPatterns){
+  if(p.every(i=>b[i]==="O"))return 10;
+  if(p.every(i=>b[i]==="X"))return -10;
+ }
+ return b.includes("")?null:0;
+}
+
+function checkWinner(){
+ for(let p of winPatterns){
+  if(p.every(i=>cells[i]===currentPlayer)){
+   p.forEach(i=>board.children[i].classList.add("win"));
+   gameActive=false;return true;
+  }
+ }
+ return false;
+}
+
+function celebrate(){
+ statusText.textContent=`Player ${currentPlayer} Wins! 🎉`;
+ winnerText.textContent=`🎉 Player ${currentPlayer} Wins!`;
+ popup.classList.add("show");
+
+ for(let i=0;i<90;i++){
+  let c=document.createElement("div");
+  c.className="confetti";
+  c.style.left=Math.random()*100+"vw";
+  c.style.background=`hsl(${Math.random()*360},100%,50%)`;
+  c.style.animationDuration=Math.random()*2+2+"s";
+  document.body.appendChild(c);
+  setTimeout(()=>c.remove(),3000);
+ }
+}
+
+function resetGame(){
+ cells=Array(9).fill("");
+ currentPlayer="X";
+ gameActive=true;
+ popup.classList.remove("show");
+ statusText.textContent="Player X's turn";
+ createBoard();
+}
+
+createBoard();
+</script>
+
+</body>
+</html>
